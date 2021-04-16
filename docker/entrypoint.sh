@@ -1,5 +1,6 @@
 #!/bin/bash
 
-python /app/download.py
+# Synchronize trash annotations in the background
+timeout 30 python /app/download.py
 
 exec "$@"
