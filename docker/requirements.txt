@@ -1,0 +1,14 @@
+pillow
+requests
+jupyter
+numpy
+pandas
+matplotlib
+seaborn
+graphviz
+Cython
+tensorflow==2.4.1
+scikit-image
+pycocotools
+keras
+imgaug
