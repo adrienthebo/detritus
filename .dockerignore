@@ -1,2 +1,3 @@
 /data/**/*.jpg
 /data/**/*.JPG
+/docker/Dockerfile

@@ -2,4 +2,4 @@
 
 python /app/download.py
 
-exec $@
+exec "$@"
