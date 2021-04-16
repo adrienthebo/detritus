@@ -12,3 +12,5 @@ scikit-image
 pycocotools
 keras
 imgaug
+
+nbstripout==0.3.8
