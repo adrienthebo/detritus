@@ -13,7 +13,8 @@ from io import BytesIO
 import sys
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--dataset_path', required=False, default= './data/annotations.json', help='Path to annotations')
+parser.add_argument('--dataset_path', required=False, default='./data/annotations.json', help='Path to annotations')
+parser.add_argument('--workers', required=False, default=25, help='The number of workers to use when downloading annotated files.')
 args = parser.parse_args()
 
 dataset_dir = os.path.dirname(args.dataset_path)
@@ -57,9 +58,8 @@ with open(args.dataset_path, 'r') as f:
         sys.stdout.flush()
         i+=1
 
-    with ThreadPoolExecutor(max_workers=25) as executor:
+    with ThreadPoolExecutor(max_workers=parser.workers) as executor:
         executor.map(download, range(nr_images))
-    #print('\x1b[2J')
 
 
 
