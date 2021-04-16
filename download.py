@@ -3,6 +3,7 @@ This script downloads TACO's images from Flickr given an annotation json file
 Code written by Pedro F. Proenza, 2019
 '''
 
+from concurrent.futures import ThreadPoolExecutor
 import os.path
 import argparse
 import json
@@ -24,7 +25,8 @@ with open(args.dataset_path, 'r') as f:
     annotations = json.loads(f.read())
 
     nr_images = len(annotations['images'])
-    for i in range(nr_images):
+
+    def download(i):
 
         image = annotations['images'][i]
 
@@ -54,5 +56,11 @@ with open(args.dataset_path, 'r') as f:
         sys.stdout.write("%s[%s%s] - %i/%i\r" % ('Loading: ', "=" * x, "." * (bar_size - x), i, nr_images))
         sys.stdout.flush()
         i+=1
+
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        executor.map(download, range(nr_images))
+    #print('\x1b[2J')
+
+
 
     sys.stdout.write('Finished\n')
