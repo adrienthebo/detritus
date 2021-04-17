@@ -5,15 +5,17 @@ This script downloads TACO's images from Flickr given an annotation json file
 Code written by Pedro F. Proenza, 2019
 '''
 
-import time
+from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
-import os.path
+from io import BytesIO
+
 import argparse
 import json
-from PIL import Image
+import os.path
 import requests
-from io import BytesIO
 import sys
+import time
+import typing as t
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dataset_path', required=False, default='./data/annotations.json', help='Path to annotations')
@@ -23,6 +25,19 @@ args = parser.parse_args()
 dataset_dir = os.path.dirname(args.dataset_path)
 
 print('Note. If for any reason the connection is broken. Just call me again and I will start where I left.')
+
+BAR_WIDTH = 30
+ANSI_KILL_LINE = "\033[K"
+BAR_FMT = "Loading: [{}] - {}/{} ({} workers)\r"
+
+def print_bar(pos: int, stop: int, workers: int) -> None:
+    bar_offset = stop - pos
+    x = int(BAR_WIDTH * bar_offset / stop)
+    bar = ("=" * x) + ("." * (BAR_WIDTH - x))
+
+    sys.stdout.write(ANSI_KILL_LINE)
+    sys.stdout.write(BAR_FMT.format(bar, bar_offset, stop, workers))
+    sys.stdout.flush()
 
 # Load annotations
 with open(args.dataset_path, 'r') as f:
@@ -54,52 +69,36 @@ with open(args.dataset_path, 'r') as f:
             else:
                 img.save(file_path)
 
-        i+=1
-
-    def abort_on_exception(fut):
-        if fut is not None and fut.done() and fut.exception():
+    def abort_on_sigint(fn, *args):
+        try:
+            fn(*args)
+        except KeyboardInterrupt:
+            print("aborting in worker")
             sys.exit(1)
 
-    def wait_for(futures):
-      noned = [f for f in futures if f is None]
-      some = [f for f in futures if f is not None]
-
-      running = [f for f in some if not f.done()]
-      done = [f for f in some if f.done()]
-      failed = [f for f in done if f.exception()]
-
-      print("none", len(noned), "some", len(some), "running", len(running), "done", len(done), "failed", len(failed))
-
-      if any(failed):
-        sys.exit(1)
-
-      return running
-
-
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = [executor.submit(download, i) for i in range(nr_images)]
+        futures = [
+                executor.submit(lambda i: abort_on_sigint(download, i), i)
+                for i in range(nr_images)
+        ]
 
-        running = futures
+        outstanding = futures
 
-        while True:
+        while len(outstanding) > 0 and not any([f.exception() for f in outstanding if f.done()]):
             try:
-                running = wait_for(running)
+                outstanding = [f for f in outstanding if not f.done() or f.exception()]
 
-                if len(running) < 1:
-                  sys.exit()
-
-                #futures = [f for f in futures if not f.done()]
-
-                #bar_size = 30
-                #i = nr_images - len(futures)
-                #x = int(bar_size * i / nr_images)
-                #fmt = "\033[KLoading: [{}{}] - {}/{} ({} workers)\r"
-                #sys.stdout.write(fmt.format("=" * x, "." * (bar_size - x), i, nr_images, args.workers))
-                #sys.stdout.flush()
+                print_bar(len(outstanding), len(futures), args.workers)
 
                 time.sleep(0.25)
             except BaseException as err:
-              print("Fuck exceptions")
-              executor.shutdown(wait=False, cancel_futures=False)
+                print(f"handling {err}:{err.__class__}")
+                print("Shutting down workers, this may take a few seconds.")
 
-    sys.stdout.write('Finished\n')
+                for fut in futures:
+                    fut.cancel()
+
+                executor.shutdown(wait=False)
+                raise err
+
+    print('Finished.')
