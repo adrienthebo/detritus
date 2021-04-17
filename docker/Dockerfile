@@ -1,4 +1,5 @@
-FROM python:3.9
+FROM python:3.8
+# Python version dependent on tensorflow; tensorflow 2.4.1 requires python 3.8
 
 RUN apt-get update -qq \
   && apt-get -y install graphviz python3-opencv \
