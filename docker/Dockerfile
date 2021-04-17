@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.9
 
 RUN apt-get update -qq \
   && apt-get -y install graphviz python3-opencv \
