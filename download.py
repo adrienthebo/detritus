@@ -84,21 +84,21 @@ with open(args.dataset_path, 'r') as f:
 
         outstanding = futures
 
-        while len(outstanding) > 0 and not any([f.exception() for f in outstanding if f.done()]):
-            try:
+        try:
+            while len(outstanding) > 0 and not any([f.exception() for f in outstanding if f.done()]):
                 outstanding = [f for f in outstanding if not f.done() or f.exception()]
 
                 print_bar(len(outstanding), len(futures), args.workers)
 
                 time.sleep(0.25)
-            except BaseException as err:
-                print(f"handling {err}:{err.__class__}")
-                print("Shutting down workers, this may take a few seconds.")
+        except BaseException as err:
+            print()
+            print("Shutting down workers, this may take a few seconds.")
+            for fut in futures:
+                fut.cancel()
 
-                for fut in futures:
-                    fut.cancel()
+            executor.shutdown(wait=False)
+            raise err
 
-                executor.shutdown(wait=False)
-                raise err
-
-    print('Finished.')
+        print()
+        print('✅ Finished.')
