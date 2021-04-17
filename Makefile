@@ -14,12 +14,11 @@ test: ## Test the detector notebook
 
 .PHONY: download
 download: ## Test the detector notebook
-	 docker run -it --rm -v `pwd`:/app -e /bin/bash detritus:dev \
-	  python /app/download.py
+	 docker run -it --rm -v `pwd`:/app --entrypoint /app/download.py detritus:dev
 
 .PHONY: shell
 shell: ## Run a new container and execute bash
-	 docker run -it --rm -v `pwd`:/app detritus:dev /bin/bash
+	 docker run -it --rm --entrypoint /bin/bash -v `pwd`:/app detritus:dev
 
 .PHONY: build
 build: ## Build the detritus container
