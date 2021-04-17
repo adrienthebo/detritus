@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
+
 '''
 This script downloads TACO's images from Flickr given an annotation json file
 Code written by Pedro F. Proenza, 2019
 '''
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 import os.path
 import argparse
@@ -14,7 +17,7 @@ import sys
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dataset_path', required=False, default='./data/annotations.json', help='Path to annotations')
-parser.add_argument('--workers', required=False, default=25, help='The number of workers to use when downloading annotated files.')
+parser.add_argument('--workers', required=False, default=5, help='The number of workers to use when downloading annotated files.')
 args = parser.parse_args()
 
 dataset_dir = os.path.dirname(args.dataset_path)
@@ -51,16 +54,52 @@ with open(args.dataset_path, 'r') as f:
             else:
                 img.save(file_path)
 
-        # Show loading bar
-        bar_size = 30
-        x = int(bar_size * i / nr_images)
-        sys.stdout.write("%s[%s%s] - %i/%i\r" % ('Loading: ', "=" * x, "." * (bar_size - x), i, nr_images))
-        sys.stdout.flush()
         i+=1
 
-    with ThreadPoolExecutor(max_workers=parser.workers) as executor:
-        executor.map(download, range(nr_images))
+    def abort_on_exception(fut):
+        if fut is not None and fut.done() and fut.exception():
+            sys.exit(1)
+
+    def wait_for(futures):
+      noned = [f for f in futures if f is None]
+      some = [f for f in futures if f is not None]
+
+      running = [f for f in some if not f.done()]
+      done = [f for f in some if f.done()]
+      failed = [f for f in done if f.exception()]
+
+      print("none", len(noned), "some", len(some), "running", len(running), "done", len(done), "failed", len(failed))
+
+      if any(failed):
+        sys.exit(1)
+
+      return running
 
 
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        futures = [executor.submit(download, i) for i in range(nr_images)]
+
+        running = futures
+
+        while True:
+            try:
+                running = wait_for(running)
+
+                if len(running) < 1:
+                  sys.exit()
+
+                #futures = [f for f in futures if not f.done()]
+
+                #bar_size = 30
+                #i = nr_images - len(futures)
+                #x = int(bar_size * i / nr_images)
+                #fmt = "\033[KLoading: [{}{}] - {}/{} ({} workers)\r"
+                #sys.stdout.write(fmt.format("=" * x, "." * (bar_size - x), i, nr_images, args.workers))
+                #sys.stdout.flush()
+
+                time.sleep(0.25)
+            except BaseException as err:
+              print("Fuck exceptions")
+              executor.shutdown(wait=False, cancel_futures=False)
 
     sys.stdout.write('Finished\n')
